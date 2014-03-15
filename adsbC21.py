@@ -4,14 +4,17 @@ import datetime
 import struct
 import sys
 import os
+import sqlite3
 
 def CountFx( frame ):
     #Bytes = struct.unpack('2s'*(len( frame ) / 2),frame)
     FX = 0
     #print frame
-    while ( frame[FX] & 0x01) != 0:
-        FX = FX + 1
+    while ( frame[ FX ] & 0x01 ) != 0:
+        FX += 1
+    
     FX += 1
+
     return FX
 
 def Trans21GPSPos( frame ):
@@ -120,7 +123,7 @@ def ReadGroundSpeed( frame ):
     fHeading = unData * 0.005493
     
     '''
-    fHeading -= 90
+    fHeading = 90 - fHeading
     if fHeading < 0:
         fHeading += 360
     '''
@@ -162,6 +165,33 @@ def ReadSSR( frame ):
         return oct( ( unData & 0x0fff ) )
     else:
         return '0000'
+
+def ReadTargetReport( frame ):
+    unData = ( frame[0] << 8 ) + frame[1]
+    #//第一位点航迹标识在外部判断
+    if ( unData & 0x4000 ) != 0:
+        print 'Ground Bit set'
+    else:
+        print 'Ground Bit not set'
+
+    '''
+    {
+        clsPlot.m_bSim = 1;
+    }
+    if (unData & 0x1000) 
+    {
+        clsPlot.m_bTest = 1;
+    }
+    if (unData & 0x0800) 
+    {
+        clsPlot.m_bRAB = 1;
+    }
+    if (unData & 0x0200) 
+    {
+        clsPlot.m_bSpi = 1;
+    }
+    '''
+
     
 def ReadOneFrame( frame, recdate, rechour='' ):                
     ga = 0.0
@@ -218,6 +248,7 @@ def ReadOneFrame( frame, recdate, rechour='' ):
     #//I021/040 //Target Report Descriptor: 2 bytes
     if ( bFlag1 & 0x40 ) != 0:
         #print 'Target Report Descriptor'
+        #ReadTargetReport( frame[Offset:] )
         Offset += 2
         pass
 
@@ -248,6 +279,9 @@ def ReadOneFrame( frame, recdate, rechour='' ):
             if dRecHour == 0 and hour == 23:
                 time += datetime.timedelta(-1)
                 #ßdRecDay -= 1
+        else:
+            if ( hour >= 16 ) and ( hour <= 23 ):
+                time += datetime.timedelta(-1)
 
         #print time
 
@@ -408,6 +442,16 @@ def ReadOneFrame( frame, recdate, rechour='' ):
     print '%s,%s,%s,%s,%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
         cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
 
+    sqls = '\'%s\',\'%s\',\'%s\',\'%s\',%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
+        cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
+
+    sqls = sqls.replace('\'\'', 'null')
+    #sqls = sqls.replace('\'', '\\\'')
+    
+    #print 'insert into flight_record values (' + sqls + ')'
+
+    #crsr.execute( 'insert into flight_record values (' + sqls + ')' )
+
     return True
 
         
@@ -480,11 +524,21 @@ if __name__ == '__main__':
         print 'input file not exist'
         sys.exit(0)
 
-    if sys.argv[1] == 'bin':
-        ReadBinDataFile( sys.argv[2] )
-    else:
-        if sys.argv[1] == 'txt':
-            ReadTxtDataFile( sys.argv[2] )
+
+    #release the sqlite3 ...
+    conn = sqlite3.connect('flightdb.sqlite')
+    crsr = conn.cursor()
+
+    try:
+        if sys.argv[1] == 'bin':
+            ReadBinDataFile( sys.argv[2] )
         else:
-            print 'only read txt or bin file'
-            
+            if sys.argv[1] == 'txt':
+                ReadTxtDataFile( sys.argv[2] )
+            else:
+                print 'only read txt or bin file'
+    finally:
+        pass
+
+    conn.commit()
+    conn.close()        
