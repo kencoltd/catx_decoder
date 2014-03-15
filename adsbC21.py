@@ -8,31 +8,31 @@ def CountFx( frame ):
     #Bytes = struct.unpack('2s'*(len( frame ) / 2),frame)
     FX = 0
     #print frame
-    while ( int( frame[FX], 16 ) & 0x01) != 0:
+    while ( frame[FX] & 0x01) != 0:
         FX = FX + 1
     FX += 1
     return FX
 
 def Trans21GPSPos( frame ):
     #print frame
-    iData = int( frame[0], 16 )
+    iData = frame[0]
     iData <<=  8
-    iData |= int( frame[1], 16 )
+    iData |= frame[1]
     iData <<=  8
-    iData |= int( frame[2], 16 )
+    iData |= frame[2]
     iData <<=  8
-    iData |= int( frame[3], 16 )
+    iData |= frame[3]
 
     #//LSB = 180/power(2,25)
     fLatitude = iData * 180.0/33554432
     
-    iData = int( frame[4], 16 )
+    iData = frame[4]
     iData <<=  8
-    iData |= int( frame[5], 16 )
+    iData |= frame[5]
     iData <<=  8
-    iData |= int( frame[6], 16 )
+    iData |= frame[6]
     iData <<=  8
-    iData |= int( frame[7], 16 )
+    iData |= frame[7]
     #//LSB = 180/power(2,25)
     fLongitude = iData*180.0/33554432
     
@@ -40,19 +40,20 @@ def Trans21GPSPos( frame ):
 
 def ReadTargetAddress( frame ):
     uiData = 0
-    uiData = int( frame[0], 16 )
+    uiData = frame[0]
     uiData<<= 8
-    uiData |= int( frame[1], 16 )
+    uiData |= frame[1]
     uiData<<= 8
-    uiData |= int( frame[2], 16 )
+    uiData |= frame[2]
 
     return uiData
 
 def ReadModeCHei( frame ):
-    return int( frame[0] + frame[1], 16 ) * 7.62
+    #print frame[0], frame[1], ( frame[0] << 8 + frame[1] ), ( frame[0] << 8 + frame[1] ) * 7.62
+    return ( ( frame[0] << 8 ) + frame[1] ) * 7.62
 
 def ReadGpsHei( frame ):
-    return int( frame[0] + frame[1], 16 ) * 1.905
+    return ( ( frame[0] << 8 ) + frame[1] ) * 1.905
 
 def ReadCallCode( frame ):
     return GetStringFrom6Char( frame )
@@ -60,34 +61,34 @@ def ReadCallCode( frame ):
 def GetStringFrom6Char( frame ):
     #print frame
     chCallCode = ''
-    c = int( frame[0], 16 )
+    c = frame[0]
     c >>= 2 #//bit 48-43 of 6 bytes
     chCallCode += chr(SixBits2OneChar(c&0x3f))
 
-    c = int( frame[0], 16 )<<4
-    c |= int( frame[1], 16 )>>4#//bit 42-37 of 6 bytes
+    c = frame[0] << 4
+    c |= frame[1] >> 4#//bit 42-37 of 6 bytes
     chCallCode += chr(SixBits2OneChar(c&0x3f))
 
-    c = int( frame[1], 16 )<<2;
-    c |= int( frame[2], 16 )>>6#//bit 36-31 of 6 bytes
+    c = frame[1]<<2;
+    c |= frame[2]>>6#//bit 36-31 of 6 bytes
     chCallCode += chr(SixBits2OneChar(c&0x3f))
 
-    c = int( frame[2], 16 )#//bit 30-25 of 6 bytes
+    c = frame[2]#//bit 30-25 of 6 bytes
     chCallCode += chr(SixBits2OneChar(c&0x3f))
 
-    c = int( frame[3], 16 )
+    c = frame[3]
     c>>= 2#//bit 24-19 of 6 bytes
     chCallCode += chr(SixBits2OneChar(c&0x3f))
 
-    c = int( frame[3], 16 )<<4
-    c |= int( frame[4], 16 )>>4#//bit 18-13 of 6 bytes
+    c = frame[3]<<4
+    c |= frame[4]>>4#//bit 18-13 of 6 bytes
     chCallCode += chr( SixBits2OneChar(c&0x3f) )
 
-    c = int( frame[4], 16 )<<2
-    c |= int( frame[5], 16 )>>6#//bit 12-7 of 6 bytes
+    c = frame[4]<<2
+    c |= frame[5]>>6#//bit 12-7 of 6 bytes
     chCallCode += chr( SixBits2OneChar(c&0x3f) )
 
-    c = int( frame[5], 16 )#//bit 6-1 of 6 bytes
+    c = frame[5]#//bit 6-1 of 6 bytes
     chCallCode += chr( SixBits2OneChar(c&0x3f) )
 
     return chCallCode.replace( ' ','' )
@@ -99,7 +100,7 @@ def SixBits2OneChar( value ):
             return value
 
 def ReadAirSpeed( frame ):
-    uData = int( frame[0] + frame[1], 16 )
+    uData = ( frame[0] << 8 ) + frame[1]
     if ( uData & 0x8000 ) != 0:
         return (uData&0x7fff) * 0.32
     else:
@@ -107,25 +108,24 @@ def ReadAirSpeed( frame ):
 
 
 def ReadTrueAirSpeed( frame ):
-    unData = int( frame[0] + frame[1], 16 )
+    unData = ( frame[0] << 8 ) + frame[1]
     #///1knot NM/H
     return unData * 0.514444
 
 def ReadGroundSpeed( frame ):
-    unData = int( frame[0] + frame[1], 16 )
+    unData = ( frame[0] << 8 ) + frame[1]
     fSpeed = unData * 0.11304
-    unData = int( frame[2] + frame[3], 16 )
+    unData = ( frame[2] << 8 ) + frame[3]
     fHeading = unData * 0.005493
     
     return fSpeed, fHeading
 
 
 if __name__ == '__main__':
-	fData = open( 'ADSB.dat', 'r' )
+	fData = open( 'ADSB.data.txt', 'r' )
 	aLine = fData.readline()
     
 	while aLine != '' :
-
             bData = aLine.replace('\n', '').split(' ')
             if len( bData ) != 2:
                     print 'bad data, %s' % aLine
@@ -133,7 +133,12 @@ if __name__ == '__main__':
                 
             dTime = bData[0]
             #dFrame = bData[1]
-            dFrame = struct.unpack('2s'*(len( bData[1] ) / 2),bData[1])
+            cFrame = struct.unpack('2s'*(len( bData[1] ) / 2),bData[1])
+            dFrame = []
+            for e in cFrame:
+                dFrame.append( int( e, 16 ) )
+                
+            #print dFrame2
             
             time = datetime.datetime(
             int(dTime[0:4]),
@@ -149,12 +154,15 @@ if __name__ == '__main__':
             ta = 0.0
             spd = 0.0 
             heading = 0.0
-            if int( dFrame[0], 16 ) != 21:
+            if dFrame[0] != 21:
                 print 'not cat21 data, %s' % aLine
                 aLine = fData.readline()
                 continue
 
-            if int( dFrame[1]+dFrame[2], 16 ) != len( dFrame ):
+            
+            #if int( dFrame[1]+dFrame[2], 16 ) != len( dFrame ):
+            
+            if ( ( dFrame[1] << 8 ) + dFrame[2] ) != len( dFrame ):
                 print 'bad data2, %s' % aLine
                 aLine = fData.readline()
                 continue
@@ -170,7 +178,7 @@ if __name__ == '__main__':
                 pass
                 
             Offset = 3 + cFX
-            bFlag1 = int( dFrame[3], 16 )
+            bFlag1 = dFrame[3]
             #print 'Flag 1, 0x%X' % bFlag1
 
             #//I021/010 //Data Source Identifier: 2 bytes
@@ -220,7 +228,7 @@ if __name__ == '__main__':
                 pass
 
             if cFX > 1:
-                bFlag2 = int( dFrame[4], 16 )
+                bFlag2 = dFrame[4]
                 #print 'Flag 2, 0x%X' % bFlag2
                 
                 #//I021/210 //Link Technology: 1 uint8
@@ -263,7 +271,7 @@ if __name__ == '__main__':
                     pass
 
             if cFX > 2:
-                bFlag3 = int( dFrame[5], 16 )
+                bFlag3 = dFrame[5]
                 #print 'Flag 3, 0x%X' % bFlag3
                 
                 #//I021/157 //Geometric Vertical Rate: 2 bytes
