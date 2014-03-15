@@ -119,6 +119,11 @@ def ReadGroundSpeed( frame ):
     unData = ( frame[2] << 8 ) + frame[3]
     fHeading = unData * 0.005493
     
+    '''
+    fHeading -= 90
+    if fHeading < 0:
+        fHeading += 360
+    '''
     return fSpeed, fHeading
 
 def ReadTime( frame ):
@@ -158,7 +163,7 @@ def ReadSSR( frame ):
     else:
         return '0000'
     
-def ReadOneFrame( frame ):                
+def ReadOneFrame( frame, recdate, rechour='' ):                
     ga = 0.0
     ia = 0.0
     ta = 0.0
@@ -173,7 +178,7 @@ def ReadOneFrame( frame ):
     SSR = ''
 
     if frame[0] != 21:
-        print 'not cat21 data'
+        #print 'not cat21 data'
         return False
         #continue
 
@@ -181,7 +186,8 @@ def ReadOneFrame( frame ):
     #if int( frame[1]+frame[2], 16 ) != len( frame ):
     
     if ( ( frame[1] << 8 ) + frame[2] ) != len( frame ):
-        print 'not enough data'
+        #print 'not enough data'
+        #print frame
         #aLine = fData.readline()
         return False
         #continue
@@ -220,20 +226,14 @@ def ReadOneFrame( frame ):
         #print 'Time of Day'
         hour, minu, sec, minsec, rawdata = ReadTime( frame[Offset:] )
 
-        dDate = sys.argv[1].split('/')
-        dRecHour = int( dDate[3][0:2] )
-        dActDay = int(dDate[1][6:8])
-
-        if dRecHour == 0 and hour == 23:
-            dActDay -= 1
-
         if hour == 24:
             hour = 0
+
         try:
             time = datetime.datetime(
-            int(dDate[1][0:4]),
-            int(dDate[1][4:6]),
-            dActDay,
+            int( recdate[0:4] ),
+            int( recdate[4:6] ),
+            int( recdate[6:8] ),
             hour,
             minu,
             sec,
@@ -242,7 +242,14 @@ def ReadOneFrame( frame ):
             print hour, minu, sec, minsec, rawdata
             #sys.exit(0)
             pass
-    #print time
+
+        if rechour != '':
+            dRecHour = int( rechour )
+            if dRecHour == 0 and hour == 23:
+                time += datetime.timedelta(-1)
+                #ßdRecDay -= 1
+
+        #print time
 
         Offset += 3
         pass
@@ -392,26 +399,26 @@ def ReadOneFrame( frame ):
 
         pass
 
-    if ( lat >= 0.0 and lat <= 90.0 ) and \
-       ( lon >= 0.0 and lon <= 180.0 ):# and \
-       #( spd != 0.0 and heading != 0.0 ):
-        print time, '|' ,cc, '|', SSR,'|', tAddr, '|', lat, '|', lon, '|', ga, '|', fl,'|', spd, '|', heading
+    #if ( lat >= 0.0 and lat <= 90.0 ) and \
+    #   ( lon >= 0.0 and lon <= 180.0 ) and \
+    #   ( cc != 'GBTEST02' and cc != 'GBTEST01' and cc != 'VIR201' and cc != 'KANGDI01' and cc != 'KANGDI02' and \
+    #      cc != 'LINZHI05' and cc != 'LINZHI06' and cc != 'DMLTT1' and cc != 'DMLTT2' and cc != 'LSTEST07' and \
+    #      cc != 'LSTEST08' ):# and \
+       #( spd != 0.0 and heading != 0.0 and lat != 0.0 and lon != 0.0 ):
+    print '%s,%s,%s,%s,%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
+        cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
 
     return True
 
-if __name__ == '__main__':
-    if len( sys.argv ) != 2:
-        print 'input file name'
-        sys.exit(0)
-
-    if not os.path.exists( sys.argv[1] ):
-        print 'input file not exist'
-        sys.exit(0)
         
-    fData = open( sys.argv[1], 'rb' )
+
+def ReadBinDataFile( filename ):
+
+    fData = open( filename, 'rb' )
     fData.read(26)
     aChar21 = fData.read(1)
-    
+    dDate = sys.argv[2].split('/')
+
     while aChar21 != '' :
         cLen = fData.read(2)
         if len( cLen ) != 2:
@@ -432,12 +439,52 @@ if __name__ == '__main__':
         for e in cFrame:
             dFrame.append( ord( e ) )
 
-        #print dFrame
-            
-        if ReadOneFrame( dFrame ) != True:
+        #print dFrame        
+        
+        if ReadOneFrame( dFrame, dDate[1], dDate[3][0:2] ) != True:
+            print 'data read error'
             break
 
         aCRC = fData.read(8)
         aChar21 = fData.read(1)
 
+def ReadTxtDataFile( filename ):
+    fData = open( filename, 'r' )
+    aLine = fData.readline()
+    
+    while aLine != '' :
+        bData = aLine.replace('\n', '').replace('\r', '').split(' ')
+        if len( bData ) != 2:
+                print 'bad data, %s' % aLine
+                aLine = fData.readline()
+                continue
+            
+        dTime = bData[0]
+        cFrame = struct.unpack('2s'*(len( bData[1] ) / 2),bData[1])
+        dFrame = []
+        for e in cFrame:
+            dFrame.append( int( e, 16 ) )
+                
+        if ReadOneFrame( dFrame, dTime[0:8] ) != True:
+            #break
+            pass
 
+        aLine = fData.readline()
+
+if __name__ == '__main__':
+    if len( sys.argv ) != 3:
+        print 'input file name'
+        sys.exit(0)
+    
+    if not os.path.exists( sys.argv[2] ):
+        print 'input file not exist'
+        sys.exit(0)
+
+    if sys.argv[1] == 'bin':
+        ReadBinDataFile( sys.argv[2] )
+    else:
+        if sys.argv[1] == 'txt':
+            ReadTxtDataFile( sys.argv[2] )
+        else:
+            print 'only read txt or bin file'
+            
