@@ -439,8 +439,8 @@ def ReadOneFrame( frame, recdate, rechour='' ):
     #      cc != 'LINZHI05' and cc != 'LINZHI06' and cc != 'DMLTT1' and cc != 'DMLTT2' and cc != 'LSTEST07' and \
     #      cc != 'LSTEST08' ):# and \
        #( spd != 0.0 and heading != 0.0 and lat != 0.0 and lon != 0.0 ):
-    print '%s,%s,%s,%s,%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
-        cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
+    #print '%s,%s,%s,%s,%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
+    #    cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
 
     sqls = '\'%s\',\'%s\',\'%s\',\'%s\',%f,%f,%f,%f,%f,%f' % ( time.strftime('%Y-%m-%d %H:%M:%S.%f'), \
         cc, SSR, tAddr, lat, lon, ga, fl, spd, heading )
@@ -450,7 +450,7 @@ def ReadOneFrame( frame, recdate, rechour='' ):
     
     #print 'insert into flight_record values (' + sqls + ')'
 
-    #crsr.execute( 'insert into flight_record values (' + sqls + ')' )
+    crsr.execute( 'insert into flight_record values (' + sqls + ')' )
 
     return True
 
